@@ -3,6 +3,7 @@ from string import ascii_letters, ascii_lowercase, digits
 from datetime import datetime
 from uuid import uuid4
 import time as sleper
+requests.packages.urllib3.disable_warnings()
 class Fidra:
 	def __init__(self):
 		self.start_time = sleper.time()
@@ -59,37 +60,33 @@ class Fidra:
 					print('[1] Checking username')
 					return True
 					break
-	def EmailSessId(self):
-		if Fidra.CheckUsername():
-			url = 'https://10minutemail.com/?lang=ar'
-			headers = {
-			'User-Agent':'Mozilla/5.0 (iPhone; CPU iPhone OS 14_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0.3 Mobile/15E148 Safari/604.1',
-			}
-			try:
-				self.JSESSIONID = requests.get(url,headers=headers).cookies['JSESSIONID']
-				return True
-			except :
-				return False
-		else:
-			print('Missing cookies')
+				else:
+					print(f"Searching for available username")
 	def CreateEmail(self):
-		if Fidra.EmailSessId():
-			url = 'https://10minutemail.com/session/address'
+		if Fidra.CheckUsername():
+			url = 'https://api.internal.temp-mail.io/api/v3/email/new'
 			headers = {
-			'User-Agent':'Mozilla/5.0 (iPhone; CPU iPhone OS 14_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0.3 Mobile/15E148 Safari/604.1',
-			'Cookie':f'JSESSIONID={self.JSESSIONID}'
+			'User-Agent':'Temp%20Mail/30 CFNetwork/1220.1 Darwin/20.3.0',
+			'Content-Type':'application/json'
+			}
+			data = {
+			"min_name_length" : 5,
+			"max_name_length" : 7
 			}
 			try:
-				response = requests.get(url,headers=headers)
-				self.email = response.json()['address']
+				response = requests.post(url,headers=headers,json=data,verify=False)
+				if 'email' in response.text:
+					self.email = response.json()['email']
 
-				print('[2] Creating Email')				
-				return True
-			except :
-				print(response.text)
+					print('[2] Creating Email')				
+					return True
+				else:
+					return False
+			except Exception as e :
+				print(e)
 				return False
 		else:
-			print('Missing JSESSIONID ')
+			print('Missing Cookies ')
 	def CheckBirthday(self):
 		if Fidra.CreateEmail():
 			url = 'https://www.instagram.com/web/consent/check_age_eligibility/'
@@ -158,15 +155,16 @@ class Fidra:
 			print('Error In Check Birthday')
 	def GetCode(self):
 		if Fidra.SendCode():
-			url = 'https://10minutemail.com/messages/messagesAfter/0'
+			url = f'https://api.internal.temp-mail.io/api/v3/email/{self.email}/messages'
 			headers = {
-				'User-Agent':'Mozilla/5.0 (iPhone; CPU iPhone OS 14_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0.3 Mobile/15E148 Safari/604.1',
+				'User-Agent':'Temp%20Mail/30 CFNetwork/1220.1 Darwin/20.3.0',
+				'Content-Type':'application/json'
 			}
-			cookies = {'JSESSIONID':f'{self.JSESSIONID}'}
+			
 			while True:
+				
 				for i in range(5):
-					response = requests.get(url,headers=headers,cookies=cookies)
-					sleper.sleep(4)
+					response = requests.get(url,headers=headers,verify=False)
 					if 'Instagram' in response.text:
 						for messages in response.json():
 							subject = messages['subject']
@@ -175,6 +173,7 @@ class Fidra:
 							break
 					else:				
 						print(f'\r[4] Waiting Verification code',end='')
+						sleper.sleep(5)
 				print('\rResend',end='')
 				Fidra.Retry_Send_Code(self.email)
 				
@@ -200,6 +199,7 @@ class Fidra:
 			else:
 				print(response.text)
 				return False
+		
 	def CreateAccount(self):
 		if Fidra.CheckCode():
 			print('[6] Creating Account')
@@ -224,12 +224,14 @@ class Fidra:
 				print(f'email : {self.email}')
 				print(f'Account Status : {Fidra.Account_Status(self.username)}')
 				print(f'The process took {self.elapsed_time} seconds')
+				print('account saved in "fidra-accounts.txt"')
 				print('-'*40)
 				Session = response.cookies['sessionid']
 				Account = f'{self.username}:{self.password}'
 				message = f'New IG Account Created\nusername: {self.username}\npassword: {self.password}\nemail: {self.email}\nAccount Status : {Fidra.Account_Status(self.username)}\nDeveloper : https://www.instagram.com/f09l/'
-				Fidra.SendToBot(message)
 				Fidra.SaveInfo(Account,Session)
+				Fidra.SendToBot(message)
+				
 			else:
 				print('-'*40)
 				print(response.text)
@@ -250,11 +252,9 @@ Instagram Accounts Creator v1.0
 Powered By @f09l
 """)
 Fidra = Fidra()
-counter = 0
 try:
 	count = int(input('accounts count : '))
 except :
 	count = 0
-while counter < count:
+for _ in range(count):
 	Fidra.CreateAccount()
-	counter = counter + 1
